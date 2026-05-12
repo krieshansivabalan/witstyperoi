@@ -2,4 +2,6 @@ __pycache__/
 *.pyc
 leads.db
 *.db
+*.db-shm
+*.db-wal
 .env
