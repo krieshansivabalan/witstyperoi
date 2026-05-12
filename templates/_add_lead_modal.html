@@ -1,0 +1,40 @@
+<div id="add-lead-modal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeModal('add-lead-modal')"></div>
+  <div class="modal-box">
+    <h2>Add Lead</h2>
+    <form id="add-lead-form">
+      <div class="form-row">
+        <label>Name *</label>
+        <input type="text" name="name" required placeholder="Jane Smith" />
+      </div>
+      <div class="form-row">
+        <label>Company</label>
+        <input type="text" name="company" placeholder="Acme Corp" />
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="jane@acme.com" />
+      </div>
+      <div class="form-row">
+        <label>Phone</label>
+        <input type="tel" name="phone" placeholder="+1 555 000 0000" />
+      </div>
+      <div class="form-row">
+        <label>LinkedIn URL</label>
+        <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/..." />
+      </div>
+      <div class="form-row">
+        <label>Connected On</label>
+        <input type="datetime-local" name="connected_at" />
+      </div>
+      <div class="form-row">
+        <label>Notes</label>
+        <textarea name="notes" rows="3" placeholder="Context, how we met, etc."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('add-lead-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Lead</button>
+      </div>
+    </form>
+  </div>
+</div>

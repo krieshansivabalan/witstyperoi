@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Import Leads — WitsType ROI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Import Leads</h1>
+</div>
+
+<div class="import-grid">
+
+  <!-- CSV Upload -->
+  <section class="card">
+    <h2>📥 Upload CSV</h2>
+    <p class="muted">Upload a CSV file from LinkedIn's data export or any custom CSV. Required column: <code>First Name</code> + <code>Last Name</code> (or <code>Name</code>). Optional: <code>Company</code>, <code>Email Address</code>, <code>Phone</code>, <code>URL</code>, <code>Connected On</code>.</p>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="csv-file" accept=".csv" hidden />
+      <div onclick="document.getElementById('csv-file').click()">
+        <div class="upload-icon">📄</div>
+        <p>Click to choose a CSV file</p>
+      </div>
+    </div>
+    <div id="upload-result" class="hidden"></div>
+    <button class="btn btn-primary" onclick="uploadCSV()" style="margin-top:12px">Import CSV</button>
+  </section>
+
+  <!-- LinkedIn scraper instructions -->
+  <section class="card">
+    <h2>🔗 LinkedIn Scraper</h2>
+    <p class="muted">Run the Playwright scraper script once to pull your connections and recent message history directly from your LinkedIn account.</p>
+    <div class="code-block">
+      <pre># 1. Install dependencies
+pip install -r requirements.txt
+playwright install chromium
+
+# 2. Run the scraper (opens a real browser window)
+python linkedin_scraper.py
+
+# Enter your LinkedIn credentials when prompted.
+# The script will load your connections + messages
+# and import them directly into the database.</pre>
+    </div>
+    <p class="muted" style="margin-top:8px">Your credentials are never stored — they're only used in the browser session.</p>
+  </section>
+
+</div>
+
+<script>
+function uploadCSV() {
+  const file = document.getElementById('csv-file').files[0];
+  if (!file) { alert('Please choose a CSV file first.'); return; }
+  const form = new FormData();
+  form.append('file', file);
+  fetch('/api/import/csv', {method: 'POST', body: form})
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('upload-result');
+      el.className = 'import-result';
+      el.innerHTML = `<strong>Done!</strong> Imported ${data.imported} leads, skipped ${data.skipped} (duplicates or missing name).`;
+    });
+}
+
+document.getElementById('csv-file').addEventListener('change', (e) => {
+  const name = e.target.files[0]?.name || '';
+  if (name) {
+    document.querySelector('#upload-zone p').textContent = name;
+  }
+});
+</script>
+{% endblock %}

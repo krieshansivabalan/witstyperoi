@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}All Leads — WitsType ROI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>All Leads</h1>
+  <button class="btn btn-primary" onclick="openModal('add-lead-modal')">+ Add Lead</button>
+</div>
+
+<!-- Status filter tabs -->
+<div class="filter-tabs">
+  <a href="{{ url_for('leads_page') }}" class="tab {% if not status_filter %}active{% endif %}">All</a>
+  <a href="{{ url_for('leads_page') }}?status=active" class="tab {% if status_filter == 'active' %}active{% endif %}">Active</a>
+  <a href="{{ url_for('leads_page') }}?status=paused" class="tab {% if status_filter == 'paused' %}active{% endif %}">Paused</a>
+  <a href="{{ url_for('leads_page') }}?status=completed" class="tab {% if status_filter == 'completed' %}active{% endif %}">Completed</a>
+</div>
+
+{% if leads %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Company</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Status</th>
+      <th>Step</th>
+      <th>Connected</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for lead in leads %}
+    <tr>
+      <td>
+        <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="lead-name">{{ lead.name }}</a>
+        {% if lead.linkedin_url %}
+        <a href="{{ lead.linkedin_url }}" target="_blank" class="li-link">in</a>
+        {% endif %}
+      </td>
+      <td>{{ lead.company or '—' }}</td>
+      <td>{{ lead.email or '—' }}</td>
+      <td>{{ lead.phone or '—' }}</td>
+      <td><span class="status-badge status-{{ lead.status }}">{{ lead.status }}</span></td>
+      <td>
+        {% if lead.current_step == 0 %}
+        <span class="step-label muted">Not started</span>
+        {% elif lead.current_step >= cadence|length %}
+        <span class="step-label done">Complete</span>
+        {% else %}
+        <span class="step-label">{{ lead.current_step }}/{{ cadence|length }}</span>
+        {% endif %}
+      </td>
+      <td class="muted">
+        {% if lead.connected_at %}{{ lead.connected_at[:10] }}{% else %}—{% endif %}
+      </td>
+      <td>
+        <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-ghost">View</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">👥</div>
+  <h2>No leads yet</h2>
+  <p><a href="{{ url_for('import_page') }}">Import from LinkedIn or CSV</a>, or add one manually.</p>
+</div>
+{% endif %}
+
+{% include "_add_lead_modal.html" %}
+{% endblock %}

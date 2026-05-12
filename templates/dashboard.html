@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Action Queue — WitsType ROI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Action Queue</h1>
+  <a href="{{ url_for('leads_page') }}?status=active" class="btn btn-secondary">View All Active</a>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat stat-danger">
+    <div class="stat-value">{{ stats.overdue }}</div>
+    <div class="stat-label">Overdue</div>
+  </div>
+  <div class="stat stat-warning">
+    <div class="stat-value">{{ stats.due_today }}</div>
+    <div class="stat-label">Due in 24h</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ stats.active }}</div>
+    <div class="stat-label">Active</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-label">Total Leads</div>
+  </div>
+  <div class="stat stat-success">
+    <div class="stat-value">{{ stats.completed }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+</div>
+
+{% if queue %}
+<div class="queue-table-wrapper">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Lead</th>
+        <th>Company</th>
+        <th>Next Action</th>
+        <th>Due</th>
+        <th>Progress</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in queue %}
+      <tr class="{% if lead.is_overdue %}row-overdue{% elif lead.hours_until_due <= 24 %}row-warning{% endif %}">
+        <td>
+          <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="lead-name">{{ lead.name }}</a>
+          {% if lead.linkedin_url %}
+          <a href="{{ lead.linkedin_url }}" target="_blank" class="li-link" title="LinkedIn">in</a>
+          {% endif %}
+        </td>
+        <td>{{ lead.company or '—' }}</td>
+        <td>
+          <span class="action-badge action-{{ lead.next_action_type }}">
+            {% if lead.next_action_type == 'voice_note' %}🎙️{% else %}💬{% endif %}
+            {{ lead.next_action_label }}
+          </span>
+        </td>
+        <td>
+          {% if lead.is_overdue %}
+          <span class="due-overdue">{{ (-lead.hours_until_due)|round(0)|int }}h overdue</span>
+          {% elif lead.hours_until_due < 1 %}
+          <span class="due-now">Now</span>
+          {% else %}
+          <span class="due-future">in {{ lead.hours_until_due|round(1) }}h</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="progress-steps">
+            {% for step in cadence %}
+            <div class="step-dot {% if step.step <= lead.current_step %}done{% elif step.step == lead.next_step %}next{% endif %}"
+                 title="Step {{ step.step }}: {{ step.label }}"></div>
+            {% endfor %}
+          </div>
+          <span class="step-label">Step {{ lead.current_step }}/{{ cadence|length }}</span>
+        </td>
+        <td class="action-btns">
+          <button class="btn btn-sm btn-primary" onclick="markDone({{ lead.id }})">✓ Done</button>
+          <button class="btn btn-sm btn-ghost" onclick="snooze({{ lead.id }})">Snooze</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">✅</div>
+  <h2>Queue is clear</h2>
+  <p>No actions due right now. Check back soon or <a href="{{ url_for('import_page') }}">import leads</a>.</p>
+</div>
+{% endif %}
+
+<!-- Add lead modal trigger -->
+<button class="fab" onclick="openModal('add-lead-modal')" title="Add lead">+</button>
+
+{% include "_add_lead_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function markDone(leadId) {
+  fetch(`/api/leads/${leadId}/advance`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'})
+    .then(r => r.json())
+    .then(() => location.reload());
+}
+
+function snooze(leadId) {
+  // Temporarily mark as paused — user can re-activate from lead detail
+  if (confirm('Pause this lead? You can re-activate from the lead page.')) {
+    fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: 'paused'})
+    }).then(() => location.reload());
+  }
+}
+</script>
+{% endblock %}

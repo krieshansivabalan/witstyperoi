@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} — WitsType ROI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('leads_page') }}" class="back-link">← All Leads</a>
+    <h1>{{ lead.name }}</h1>
+    {% if lead.company %}<p class="subtitle">{{ lead.company }}</p>{% endif %}
+  </div>
+  <div class="header-actions">
+    <select id="status-select" class="select" onchange="updateStatus(this.value)">
+      <option value="active"    {% if lead.status == 'active'    %}selected{% endif %}>Active</option>
+      <option value="paused"    {% if lead.status == 'paused'    %}selected{% endif %}>Paused</option>
+      <option value="completed" {% if lead.status == 'completed' %}selected{% endif %}>Completed</option>
+    </select>
+    <button class="btn btn-danger-ghost" onclick="deleteLead()">Delete</button>
+  </div>
+</div>
+
+<div class="detail-layout">
+  <!-- Left: info + cadence -->
+  <div class="detail-main">
+
+    <!-- Contact info -->
+    <section class="card">
+      <h2>Contact Info</h2>
+      <div class="info-grid" id="info-grid">
+        <div class="info-row">
+          <span class="info-label">Email</span>
+          <span class="info-value editable" data-field="email" onclick="editField(this)">{{ lead.email or '—' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Phone</span>
+          <span class="info-value editable" data-field="phone" onclick="editField(this)">{{ lead.phone or '—' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Company</span>
+          <span class="info-value editable" data-field="company" onclick="editField(this)">{{ lead.company or '—' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">LinkedIn</span>
+          <span class="info-value">
+            {% if lead.linkedin_url %}
+            <a href="{{ lead.linkedin_url }}" target="_blank">View Profile</a>
+            {% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Connected</span>
+          <span class="info-value">{{ lead.connected_at[:10] if lead.connected_at else '—' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cadence tracker -->
+    <section class="card">
+      <h2>Outreach Cadence</h2>
+      <div class="cadence-track">
+        {% for step in cadence %}
+        <div class="cadence-step {% if step.step <= lead.current_step %}done{% elif step.step == lead.current_step + 1 %}next{% endif %}">
+          <div class="cadence-dot">
+            {% if step.step <= lead.current_step %}✓
+            {% elif step.step == lead.current_step + 1 %}→
+            {% else %}{{ step.step }}{% endif %}
+          </div>
+          <div class="cadence-info">
+            <span class="cadence-label">{{ step.label }}</span>
+            <span class="cadence-type type-{{ step.type }}">
+              {% if step.type == 'voice_note' %}🎙️ Voice Note{% else %}💬 Message{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if lead.status == 'active' and lead.current_step < cadence|length %}
+      <div class="cadence-action">
+        <p>Next: <strong>{{ cadence[lead.current_step].label }}</strong></p>
+        <button class="btn btn-primary" onclick="advanceStep()">✓ Mark as Sent</button>
+      </div>
+      {% elif lead.current_step >= cadence|length %}
+      <p class="cadence-complete">All steps completed. 🎉</p>
+      {% endif %}
+    </section>
+
+    <!-- Notes -->
+    <section class="card">
+      <h2>Notes</h2>
+      <textarea id="notes-field" rows="5" placeholder="Add notes about this lead...">{{ lead.notes or '' }}</textarea>
+      <button class="btn btn-secondary" style="margin-top:8px" onclick="saveNotes()">Save Notes</button>
+    </section>
+  </div>
+
+  <!-- Right: activity history -->
+  <div class="detail-sidebar">
+    <section class="card">
+      <h2>Activity</h2>
+      {% if history %}
+      <ul class="activity-list">
+        {% for h in history|reverse %}
+        <li class="activity-item">
+          <span class="activity-icon type-{{ h.action_type }}">
+            {% if h.action_type == 'voice_note' %}🎙️{% else %}💬{% endif %}
+          </span>
+          <div class="activity-body">
+            <span class="activity-label">Step {{ h.step }}: {{ cadence[h.step - 1].label }}</span>
+            <span class="activity-date">{{ h.completed_at[:16].replace('T', ' ') }}</span>
+            {% if h.notes %}<span class="activity-notes">{{ h.notes }}</span>{% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">No activity yet.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<script>
+const LEAD_ID = {{ lead.id }};
+
+function advanceStep() {
+  const notes = '';
+  fetch(`/api/leads/${LEAD_ID}/advance`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({notes})
+  }).then(() => location.reload());
+}
+
+function updateStatus(status) {
+  fetch(`/api/leads/${LEAD_ID}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  });
+}
+
+function saveNotes() {
+  const notes = document.getElementById('notes-field').value;
+  fetch(`/api/leads/${LEAD_ID}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({notes})
+  }).then(() => {
+    const btn = document.querySelector('#notes-field + button');
+    btn.textContent = 'Saved ✓';
+    setTimeout(() => btn.textContent = 'Save Notes', 2000);
+  });
+}
+
+function editField(el) {
+  if (el.querySelector('input')) return;
+  const field = el.dataset.field;
+  const current = el.textContent.trim() === '—' ? '' : el.textContent.trim();
+  el.innerHTML = `<input type="text" value="${current}" class="inline-input" />`;
+  const input = el.querySelector('input');
+  input.focus();
+  input.onblur = () => {
+    const val = input.value.trim();
+    fetch(`/api/leads/${LEAD_ID}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[field]: val})
+    }).then(() => {
+      el.textContent = val || '—';
+    });
+  };
+  input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); };
+}
+
+function deleteLead() {
+  if (confirm('Delete this lead permanently?')) {
+    fetch(`/api/leads/${LEAD_ID}`, {method: 'DELETE'})
+      .then(() => window.location = '/leads');
+  }
+}
+</script>
+{% endblock %}
